@@ -13,6 +13,8 @@ export interface User {
     role: UserRole;
     apiKey: string;
     age?: number;
+    bio?: string;
+    theme?: 'light' | 'dark';
     followers: string[]; // Array of user IDs
     following: string[]; // Array of user IDs
     isBlocked?: boolean;
@@ -44,10 +46,12 @@ export interface Comment {
     text: string;
     timestamp: Date;
     reports: Report[];
+    reactions: Reaction[];
 }
 
 export enum IssueStatus {
     ACTIVE = 'Active',
+    IN_PROGRESS = 'In Progress',
     UNDER_REVIEW = 'Under Review',
     RESOLVED = 'Resolved'
 }
@@ -68,6 +72,7 @@ export interface IssueReport {
     
     timestamp: Date;
     status: IssueStatus;
+    resolverId?: string;
     resolutionNote?: string;
     isFromBlockedUser?: boolean;
     blockId?: string;

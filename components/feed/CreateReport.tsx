@@ -80,13 +80,13 @@ const CreateReport: React.FC<CreateReportProps> = ({ onSubmitted }) => {
     };
 
     return (
-        <div className="bg-white p-4 rounded-lg shadow-md">
+        <div className="bg-white dark:bg-slate-900 p-4 rounded-lg shadow-md">
             <form onSubmit={handleSubmit}>
                 <textarea
                     value={text}
                     onChange={handleTextChange}
                     placeholder={`Describe the issue, ${authenticatedUser?.name}...`}
-                    className="w-full p-2 border-none rounded-md focus:ring-0 text-slate-700 h-24 resize-none"
+                    className="w-full p-2 border-none rounded-md focus:ring-0 text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900 h-24 resize-none"
                 />
                 
                 {mediaPreview && (
@@ -109,15 +109,15 @@ const CreateReport: React.FC<CreateReportProps> = ({ onSubmitted }) => {
                             onChange={e => setTagInput(e.target.value)}
                             onKeyDown={handleTagInputKeyDown}
                             placeholder="Add tags and press Enter..."
-                            className="w-full p-2 border rounded-md text-sm"
+                            className="w-full p-2 border rounded-md text-sm bg-white dark:bg-slate-800 border-slate-300 dark:border-slate-600 text-slate-800 dark:text-slate-100"
                         />
                          {isSuggestingTags && <ArrowPathIcon className="w-5 h-5 text-slate-400 absolute right-2 top-2 animate-spin" />}
                     </div>
                 </div>
 
-                <div className="flex justify-between items-center mt-4 pt-4 border-t border-slate-200">
+                <div className="flex justify-between items-center mt-4 pt-4 border-t border-slate-200 dark:border-slate-700">
                     <div className="flex items-center space-x-4">
-                        <label htmlFor="media-upload" className="cursor-pointer text-slate-500 hover:text-indigo-600 flex items-center space-x-1">
+                        <label htmlFor="media-upload" className="cursor-pointer text-slate-500 hover:text-indigo-600 dark:text-slate-400 dark:hover:text-indigo-400 flex items-center space-x-1">
                             <PlusIcon className="w-6 h-6" />
                             <span>Media</span>
                         </label>
@@ -131,7 +131,7 @@ const CreateReport: React.FC<CreateReportProps> = ({ onSubmitted }) => {
                                 onChange={(e) => setIsAnonymous(e.target.checked)}
                                 className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                             />
-                            <label htmlFor="anonymous-post" className="ml-2 block text-sm text-gray-900">Report Anonymously</label>
+                            <label htmlFor="anonymous-post" className="ml-2 block text-sm text-gray-900 dark:text-slate-200">Report Anonymously</label>
                         </div>
                     </div>
                     <button type="submit" className="flex items-center space-x-2 bg-indigo-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-indigo-700 disabled:bg-indigo-300 transition-colors" disabled={!text.trim() && !mediaPreview}>

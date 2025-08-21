@@ -1,18 +1,30 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
 import Header from './components/layout/Header';
-import Sidebar from './components/layout/Sidebar';
 import AdminDashboard from './components/admin/AdminDashboard';
 import UserProfile from './components/profile/UserProfile';
 import LoginScreen from './components/auth/LoginScreen';
 import Feed from './components/feed/Feed';
 import Highlights from './components/layout/Highlights';
+import AnalyticsPage from './components/pages/AnalyticsPage';
+import AboutPage from './components/pages/AboutPage';
+import ResolverDashboard from './components/resolver/ResolverDashboard';
+import { UserRole } from './types';
 
-export type View = 'feed' | 'admin' | { type: 'profile'; userId: string };
+export type View = 'feed' | 'admin' | 'resolver' | 'analytics' | 'about' | { type: 'profile'; userId: string };
 
 const AppContent: React.FC = () => {
     const { authenticatedUser, users } = useApp();
     const [currentView, setCurrentView] = useState<View>('feed');
+
+    useEffect(() => {
+        if (authenticatedUser?.theme === 'dark') {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    }, [authenticatedUser]);
+
 
     const handleSetCurrentView = useCallback((view: View) => {
         setCurrentView(view);
@@ -30,24 +42,36 @@ const AppContent: React.FC = () => {
 
         switch (currentView) {
             case 'admin':
-                return <AdminDashboard setCurrentView={handleSetCurrentView} />;
+                 if (authenticatedUser.role === UserRole.ADMIN || authenticatedUser.role === UserRole.RESOLVER) {
+                    return <AdminDashboard setCurrentView={handleSetCurrentView} />;
+                }
+                break;
+            case 'resolver':
+                 if (authenticatedUser.role === UserRole.ADMIN || authenticatedUser.role === UserRole.RESOLVER) {
+                    return <ResolverDashboard setCurrentView={handleSetCurrentView} />;
+                }
+                break;
+            case 'analytics':
+                return <AnalyticsPage />;
+            case 'about':
+                return <AboutPage />;
             case 'feed':
             default:
                 return <Feed setCurrentView={handleSetCurrentView} />;
         }
+        
+        // Fallback for unauthorized access or default view
+        return <Feed setCurrentView={handleSetCurrentView} />;
     };
 
     return (
-        <div className="min-h-screen bg-gray-50 font-sans">
-            <Header setCurrentView={handleSetCurrentView} />
-            <div className="container mx-auto px-4 py-6 grid grid-cols-12 gap-8">
-                <aside className="col-span-12 md:col-span-3 lg:col-span-2">
-                    <Sidebar currentView={currentView} setCurrentView={handleSetCurrentView} />
-                </aside>
-                <main className="col-span-12 md:col-span-9 lg:col-span-7">
+        <div className="min-h-screen bg-gray-50 dark:bg-slate-800 font-sans">
+            <Header currentView={currentView} setCurrentView={handleSetCurrentView} />
+            <div className="container mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <main className="lg:col-span-8">
                     {renderView()}
                 </main>
-                 <aside className="hidden lg:block lg:col-span-3">
+                 <aside className="hidden lg:block lg:col-span-4">
                     <Highlights setCurrentView={handleSetCurrentView} />
                 </aside>
             </div>

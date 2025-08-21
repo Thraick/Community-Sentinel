@@ -1,60 +1,44 @@
 import { User, IssueReport, UserRole, ReactionType, IssueStatus, Comment, Report } from '../types';
-import { ALL_USERS } from '../constants';
+import { ALL_USERS, INITIAL_REPORTS } from '../constants';
 
-// --- In-memory Database ---
-let users: User[] = JSON.parse(JSON.stringify(ALL_USERS));
+// --- LocalStorage Database ---
+const DB_KEY_USERS = 'community_sentinel_users';
+const DB_KEY_REPORTS = 'community_sentinel_reports';
+const DB_KEY_TAGS = 'community_sentinel_tags';
 
-let allTags: string[] = ['#pothole', '#safety', '#parking', '#traffic', '#infrastructure', '#community', '#illegal-dumping', '#street-light', '#hazard'];
+const loadFromStorage = <T>(key: string, fallback: T): T => {
+    try {
+        const item = window.localStorage.getItem(key);
+        if (item) {
+            return JSON.parse(item);
+        }
+        window.localStorage.setItem(key, JSON.stringify(fallback));
+        return fallback;
+    } catch (error) {
+        console.error(`Error reading from localStorage key “${key}”:`, error);
+        return fallback;
+    }
+};
 
-let issueReports: IssueReport[] = [
-    {
-        id: 'report-1', authorId: 'user-2', isAnonymous: false,
-        text: 'There is a massive pothole on Elm Street right before the elementary school. It\'s a serious hazard for cars and cyclists. I almost lost control of my bike this morning!',
-        mediaUrl: 'https://picsum.photos/seed/pothole/800/600',
-        tags: ['#pothole', '#safety', '#infrastructure'], mentions: [],
-        reactions: [
-            { userId: 'user-1', type: ReactionType.LIKE }, 
-            { userId: 'user-3', type: ReactionType.LIKE },
-            { userId: 'user-4', type: ReactionType.LIKE }
-        ],
-        comments: [
-            { id: 'comment-1-1', authorId: 'user-3', text: 'I hit that yesterday! The city needs to fix this ASAP.', timestamp: new Date(Date.now() - 3600000 * 2), reports: [] },
-            { id: 'comment-1-2', authorId: 'user-1', text: 'Thanks for reporting. I\'ve sent a complaint to the public works department.', timestamp: new Date(Date.now() - 3600000 * 1), reports: [] },
-        ],
-        reports: [], timestamp: new Date(Date.now() - 3600000 * 3), status: IssueStatus.ACTIVE,
-    },
-    {
-        id: 'report-2', authorId: 'user-3', isAnonymous: true,
-        text: 'A blue sedan has been parked in front of a fire hydrant on Main Street for three days now. License plate is ABC-123.',
-        tags: ['#parking', '#safety', '#hazard'], mentions: [],
-        reactions: [{ userId: 'user-1', type: ReactionType.LIKE }], 
-        comments: [],
-        reports: [{ reporterId: 'user-2', isAnonymous: false, reason: 'This issue is critical and needs immediate attention.', timestamp: new Date(Date.now() - 3600000 * 5) }],
-        timestamp: new Date(Date.now() - 3600000 * 6), status: IssueStatus.UNDER_REVIEW,
-    },
-     {
-        id: 'report-3', authorId: 'user-1', isAnonymous: false,
-        text: 'Someone has been illegally dumping trash and old furniture behind the community park. It\'s becoming an eyesore and a health hazard.',
-        mediaUrl: 'https://picsum.photos/seed/dumping/800/600',
-        tags: ['#illegal-dumping', '#community', '#hazard'], mentions: [], 
-        reactions: [{ userId: 'user-2', type: ReactionType.SAD }, { userId: 'user-3', type: ReactionType.DISLIKE }], 
-        comments: [
-             { id: 'comment-3-1', authorId: 'user-3', text: 'This is awful. I hope they get caught.', timestamp: new Date(Date.now() - 3600000 * 20), reports: [] },
-        ],
-        reports: [],
-        timestamp: new Date(Date.now() - 3600000 * 22), status: IssueStatus.ACTIVE,
-    },
-     {
-        id: 'report-4', authorId: 'user-4', isAnonymous: false,
-        text: 'The street light at the corner of Oak & Pine has been out for over a week. It\'s very dark and feels unsafe at night.',
-        tags: ['#street-light', '#safety'], mentions: [], 
-        reactions: [], 
-        comments: [],
-        reports: [],
-        timestamp: new Date(Date.now() - 3600000 * 26), status: IssueStatus.RESOLVED,
-        resolutionNote: 'A work order was created with the city electrical department. They have confirmed the light has been repaired as of this morning. Ticket #8432.'
-    },
-];
+const saveToStorage = <T>(key: string, data: T) => {
+    try {
+        window.localStorage.setItem(key, JSON.stringify(data));
+    } catch (error) {
+        console.error(`Error writing to localStorage key “${key}”:`, error);
+    }
+};
+
+// --- In-memory Store, loaded from LocalStorage ---
+let users: User[] = loadFromStorage<User[]>(DB_KEY_USERS, JSON.parse(JSON.stringify(ALL_USERS)));
+let allTags: string[] = loadFromStorage<string[]>(DB_KEY_TAGS, ['#pothole', '#safety', '#parking', '#traffic', '#infrastructure', '#community', '#illegal-dumping', '#street-light', '#hazard', '#pedestrian', '#vandalism', '#sanitation']);
+
+const reviveReportDates = (report: any): IssueReport => ({
+    ...report,
+    timestamp: new Date(report.timestamp),
+    comments: report.comments.map((c: any) => ({ ...c, timestamp: new Date(c.timestamp) })),
+    reports: report.reports.map((r: any) => ({ ...r, timestamp: new Date(r.timestamp) })),
+});
+let issueReports: IssueReport[] = loadFromStorage<any[]>(DB_KEY_REPORTS, INITIAL_REPORTS).map(reviveReportDates);
 
 const simulateDelay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
@@ -65,6 +49,13 @@ const checkAdmin = (adminId: string) => {
     }
 };
 
+const checkResolverOrAdmin = (userId: string) => {
+    const user = users.find(u => u.id === userId);
+    if (!user || (user.role !== UserRole.ADMIN && user.role !== UserRole.RESOLVER)) {
+        throw new Error("Resolver or Admin privileges required.");
+    }
+};
+
 
 // --- API Functions ---
 
@@ -72,7 +63,6 @@ export const authenticate = async (email: string, password: string): Promise<Use
     await simulateDelay(500);
     const user = users.find(u => u.email === email && u.password === password && !u.isBlocked);
     if (user) {
-        // In a real app, never send the password back
         const { password, ...userWithoutPassword } = user;
         return userWithoutPassword;
     }
@@ -81,12 +71,12 @@ export const authenticate = async (email: string, password: string): Promise<Use
 
 export const getUsers = async (): Promise<User[]> => {
     await simulateDelay(100);
-    return users.map(({ password, ...user }) => user); // Don't expose passwords
+    return users.map(({ password, ...user }) => user);
 };
 
 export const getIssueReports = async (): Promise<IssueReport[]> => {
     await simulateDelay(100);
-    return [...issueReports].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    return [...issueReports].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
 };
 
 export const getAllTags = async (): Promise<string[]> => {
@@ -107,19 +97,22 @@ export const submitReport = async (authorId: string, reportData: Omit<IssueRepor
         ...reportData,
     };
     issueReports = [newReport, ...issueReports];
+    saveToStorage(DB_KEY_REPORTS, issueReports);
     return newReport;
 };
 
-export const addComment = async (authorId: string, reportId: string, commentData: Omit<Comment, 'id' | 'timestamp' | 'reports' | 'authorId'>): Promise<Comment> => {
+export const addComment = async (authorId: string, reportId: string, commentData: Omit<Comment, 'id' | 'timestamp' | 'reports' | 'authorId' | 'reactions'>): Promise<Comment> => {
     await simulateDelay(200);
     const newComment: Comment = {
         id: `comment-${Date.now()}`,
         authorId,
         timestamp: new Date(),
         reports: [],
+        reactions: [],
         ...commentData
     };
-    issueReports = issueReports.map(r => r.id === reportId ? { ...r, comments: [newComment, ...r.comments] } : r);
+    issueReports = issueReports.map(r => r.id === reportId ? { ...r, comments: [...r.comments, newComment] } : r);
+    saveToStorage(DB_KEY_REPORTS, issueReports);
     return newComment;
 };
 
@@ -142,6 +135,32 @@ export const toggleReaction = async (userId: string, reportId: string, reactionT
         }
         return r;
     });
+    saveToStorage(DB_KEY_REPORTS, issueReports);
+};
+
+export const toggleCommentReaction = async (userId: string, reportId: string, commentId: string, reactionType: ReactionType): Promise<void> => {
+    await simulateDelay(100);
+    issueReports = issueReports.map(r => {
+        if (r.id === reportId) {
+            r.comments = r.comments.map(c => {
+                if (c.id === commentId) {
+                    const existingIndex = c.reactions.findIndex(reaction => reaction.userId === userId);
+                    if (existingIndex > -1) {
+                        if (c.reactions[existingIndex].type === reactionType) {
+                            c.reactions = c.reactions.filter(reaction => reaction.userId !== userId);
+                        } else {
+                            c.reactions[existingIndex].type = reactionType;
+                        }
+                    } else {
+                        c.reactions.push({ userId, type: reactionType });
+                    }
+                }
+                return c;
+            })
+        }
+        return r;
+    });
+    saveToStorage(DB_KEY_REPORTS, issueReports);
 };
 
 export const reportIssue = async (reporterId: string, reportId: string, reportData: Omit<Report, 'timestamp' | 'reporterId'>): Promise<void> => {
@@ -153,6 +172,7 @@ export const reportIssue = async (reporterId: string, reportId: string, reportDa
         }
         return r;
     });
+    saveToStorage(DB_KEY_REPORTS, issueReports);
 };
 
 export const reportComment = async (reporterId: string, reportId: string, commentId: string, reportData: Omit<Report, 'timestamp' | 'reporterId'>): Promise<void> => {
@@ -160,22 +180,25 @@ export const reportComment = async (reporterId: string, reportId: string, commen
     const newReport: Report = { ...reportData, reporterId, timestamp: new Date() };
     issueReports = issueReports.map(r => {
         if (r.id === reportId) {
-            return {
-                ...r,
-                comments: r.comments.map(c => c.id === commentId ? { ...c, reports: [...c.reports, newReport] } : c)
-            };
+            r.comments = r.comments.map(c => c.id === commentId ? { ...c, reports: [...c.reports, newReport] } : c);
         }
         return r;
     });
+    saveToStorage(DB_KEY_REPORTS, issueReports);
+};
+
+export const assignIssue = async (resolverId: string, reportId: string): Promise<void> => {
+    await simulateDelay(300);
+    checkResolverOrAdmin(resolverId);
+    issueReports = issueReports.map(r => r.id === reportId ? { ...r, status: IssueStatus.IN_PROGRESS, resolverId } : r);
+    saveToStorage(DB_KEY_REPORTS, issueReports);
 };
 
 export const resolveIssue = async (resolverId: string, reportId: string, resolutionNote: string): Promise<void> => {
     await simulateDelay(300);
-    const resolver = users.find(u => u.id === resolverId);
-    if (!resolver || (resolver.role !== UserRole.ADMIN && resolver.role !== UserRole.RESOLVER)) {
-        throw new Error("Unauthorized to resolve issues");
-    }
-    issueReports = issueReports.map(r => r.id === reportId ? { ...r, status: IssueStatus.RESOLVED, resolutionNote } : r);
+    checkResolverOrAdmin(resolverId);
+    issueReports = issueReports.map(r => r.id === reportId ? { ...r, status: IssueStatus.RESOLVED, resolutionNote, resolverId } : r);
+    saveToStorage(DB_KEY_REPORTS, issueReports);
 };
 
 export const toggleFollow = async (currentUserId: string, targetUserId: string): Promise<void> => {
@@ -191,12 +214,14 @@ export const toggleFollow = async (currentUserId: string, targetUserId: string):
         }
         return u;
     });
+    saveToStorage(DB_KEY_USERS, users);
 };
 
 export const updateUserRole = async (adminId: string, userId: string, newRole: UserRole): Promise<void> => {
     await simulateDelay(200);
     checkAdmin(adminId);
     users = users.map(u => u.id === userId ? { ...u, role: newRole } : u);
+    saveToStorage(DB_KEY_USERS, users);
 };
 
 export const blockUser = async (adminId: string, userIdToBlock: string): Promise<void> => {
@@ -208,39 +233,40 @@ export const blockUser = async (adminId: string, userIdToBlock: string): Promise
     }
 
     const blockId = `block-${Date.now()}`;
-    // Mark user as blocked
     users = users.map(u => u.id === userIdToBlock ? { ...u, isBlocked: true } : u);
+    saveToStorage(DB_KEY_USERS, users);
 
-    // Anonymize user's content
     issueReports = issueReports.map(report => {
-        let updatedReport = { ...report };
         if (report.authorId === userIdToBlock) {
-            updatedReport.isFromBlockedUser = true;
-            updatedReport.blockId = blockId;
-            updatedReport.text = `[Content from blocked user #${blockId}]`;
-            updatedReport.mediaUrl = undefined;
-            updatedReport.isAnonymous = true;
+            report.isFromBlockedUser = true;
+            report.blockId = blockId;
+            report.text = `[Content from blocked user #${blockId}]`;
+            report.mediaUrl = undefined;
+            report.isAnonymous = true;
         }
-        updatedReport.comments = report.comments.map(comment => {
+        report.comments = report.comments.map(comment => {
             if (comment.authorId === userIdToBlock) {
                 return { ...comment, text: `[Comment from blocked user #${blockId}]` };
             }
             return comment;
         });
-        updatedReport.reactions = report.reactions.filter(r => r.userId !== userIdToBlock);
-        return updatedReport;
+        report.reactions = report.reactions.filter(r => r.userId !== userIdToBlock);
+        return report;
     });
+    saveToStorage(DB_KEY_REPORTS, issueReports);
 };
 
 export const updateUserProfile = async (userId: string, profileData: Partial<User>): Promise<void> => {
     await simulateDelay(300);
     users = users.map(u => u.id === userId ? { ...u, ...profileData } : u);
+    saveToStorage(DB_KEY_USERS, users);
 };
 
 export const regenerateApiKey = async (userId: string): Promise<void> => {
     await simulateDelay(200);
     const newKey = `u${userId.split('-')[1]}-${crypto.randomUUID()}`;
     users = users.map(u => u.id === userId ? { ...u, apiKey: newKey } : u);
+    saveToStorage(DB_KEY_USERS, users);
 }
 
 export const addTag = async (adminId: string, tag: string): Promise<void> => {
@@ -249,6 +275,7 @@ export const addTag = async (adminId: string, tag: string): Promise<void> => {
     const formattedTag = tag.startsWith('#') ? tag : `#${tag}`;
     if (!allTags.includes(formattedTag)) {
         allTags.push(formattedTag);
+        saveToStorage(DB_KEY_TAGS, allTags);
     }
 }
 
@@ -256,4 +283,11 @@ export const removeTag = async (adminId: string, tag: string): Promise<void> => 
     await simulateDelay(100);
     checkAdmin(adminId);
     allTags = allTags.filter(t => t !== tag);
+    saveToStorage(DB_KEY_TAGS, allTags);
 }
+
+export const updateUserTheme = async (userId: string, theme: 'light' | 'dark'): Promise<void> => {
+    await simulateDelay(100);
+    users = users.map(u => u.id === userId ? { ...u, theme } : u);
+    saveToStorage(DB_KEY_USERS, users);
+};

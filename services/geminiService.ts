@@ -43,3 +43,22 @@ export const extractTagsFromText = async (text: string): Promise<string[]> => {
         return [];
     }
 };
+
+export const censorText = async (text: string): Promise<string> => {
+    if (!API_KEY || !text) {
+        return text;
+    }
+    try {
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: `Review the following text and replace any curse words, profanity, or adult content with '***'. Return only the modified text. Text: "${text}"`,
+            config: {
+                temperature: 0.0,
+            }
+        });
+        return response.text.trim();
+    } catch (error) {
+        console.error("Error censoring text with Gemini API:", error);
+        return text; // Return original text on error
+    }
+};

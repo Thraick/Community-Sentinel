@@ -41,29 +41,29 @@ const Highlights: React.FC<HighlightsProps> = ({ setCurrentView }) => {
 
     return (
         <div className="sticky top-24 space-y-6">
-            <div className="bg-white p-4 rounded-lg shadow-md">
-                <h3 className="font-bold text-lg mb-2 text-slate-800">Top Active Issues</h3>
+            <div className="bg-white dark:bg-slate-900 p-4 rounded-lg shadow-md">
+                <h3 className="font-bold text-lg mb-2 text-slate-800 dark:text-slate-100">Top Active Issues</h3>
                 <ul className="space-y-3">
                     {topActiveReports.map(report => (
                         <li key={report.id}>
-                            <button onClick={() => handleReportClick(report)} className="text-sm font-semibold text-indigo-600 hover:underline cursor-pointer text-left">
+                            <button onClick={() => handleReportClick(report)} className="text-sm font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer text-left">
                                 {report.text ? `${report.text.substring(0, 50)}...` : 'Media Report'}
                             </button>
-                            <p className="text-xs text-slate-500">
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
                                 {report.reactions.length} reactions, {report.comments.length} comments
                             </p>
                         </li>
                     ))}
                 </ul>
             </div>
-             <div className="bg-white p-4 rounded-lg shadow-md">
-                <h3 className="font-bold text-lg mb-2 text-slate-800">Top Fans</h3>
+             <div className="bg-white dark:bg-slate-900 p-4 rounded-lg shadow-md">
+                <h3 className="font-bold text-lg mb-2 text-slate-800 dark:text-slate-100">Top Fans</h3>
                 <ul className="space-y-2">
                    {topFans.map(user => (
                        <li key={user.id}>
-                           <button onClick={() => setCurrentView({ type: 'profile', userId: user.id })} className="flex items-center space-x-2 w-full text-left p-1 rounded-md hover:bg-slate-100">
+                           <button onClick={() => setCurrentView({ type: 'profile', userId: user.id })} className="flex items-center space-x-2 w-full text-left p-1 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800">
                                <img src={user.avatarUrl} alt={user.name} className="w-8 h-8 rounded-full" />
-                               <span className="text-sm font-semibold text-slate-700">{user.name}</span>
+                               <span className="text-sm font-semibold text-slate-700 dark:text-slate-200">{user.name}</span>
                            </button>
                        </li>
                    ))}

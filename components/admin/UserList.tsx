@@ -25,16 +25,16 @@ const UserList: React.FC<UserListProps> = ({ setCurrentView }) => {
 
     return (
         <div className="overflow-x-auto">
-            <table className="min-w-full bg-white divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+            <table className="min-w-full bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-gray-700">
+                <thead className="bg-gray-50 dark:bg-slate-800">
                     <tr>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Activity</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Name</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Role</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Activity</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-gray-700">
                     {users.map(user => {
                         const reportCount = issueReports.filter(p => p.authorId === user.id).length;
                         const reportsMadeCount = issueReports.reduce((acc, report) => {
@@ -43,15 +43,15 @@ const UserList: React.FC<UserListProps> = ({ setCurrentView }) => {
                         }, 0);
 
                         return (
-                            <tr key={user.id} className={user.isBlocked ? 'bg-red-50' : ''}>
+                            <tr key={user.id} className={user.isBlocked ? 'bg-red-50 dark:bg-red-900/20' : ''}>
                                 <td className="px-6 py-4 whitespace-nowrap">
                                     <button onClick={() => setCurrentView({ type: 'profile', userId: user.id })} className="flex items-center text-left hover:underline">
                                         <div className="flex-shrink-0 h-10 w-10">
                                             <img className="h-10 w-10 rounded-full" src={user.avatarUrl} alt={user.name} />
                                         </div>
                                         <div className="ml-4">
-                                            <div className="text-sm font-medium text-gray-900">{user.name} {user.isBlocked && '(Blocked)'}</div>
-                                             <div className="text-xs text-gray-500">{user.email}</div>
+                                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{user.name} {user.isBlocked && '(Blocked)'}</div>
+                                             <div className="text-xs text-gray-500 dark:text-gray-400">{user.email}</div>
                                         </div>
                                     </button>
                                 </td>
@@ -60,11 +60,11 @@ const UserList: React.FC<UserListProps> = ({ setCurrentView }) => {
                                         {user.role}
                                     </span>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                                     <div>{reportCount} Reports</div>
                                     <div>{reportsMadeCount} Reports Made</div>
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 space-x-1">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 space-x-1">
                                     {authenticatedUser?.id !== user.id && !user.isBlocked && (
                                         <>
                                             {user.role === UserRole.USER && (

@@ -10,10 +10,12 @@ interface AppContextType {
     login: (email: string, password: string) => Promise<User | null>;
     logout: () => void;
     addReport: (report: Omit<IssueReport, 'id' | 'timestamp' | 'reactions' | 'comments' | 'reports' | 'status' | 'authorId'>) => Promise<void>;
-    addComment: (reportId: string, comment: Omit<Comment, 'id' | 'timestamp' | 'reports' | 'authorId'>) => Promise<void>;
+    addComment: (reportId: string, comment: Omit<Comment, 'id' | 'timestamp' | 'reports' | 'authorId' | 'reactions'>) => Promise<void>;
     toggleReaction: (reportId: string, reactionType: ReactionType) => Promise<void>;
+    toggleCommentReaction: (reportId: string, commentId: string, reactionType: ReactionType) => Promise<void>;
     reportIssue: (reportId: string, report: Omit<Report, 'timestamp' | 'reporterId'>) => Promise<void>;
     reportComment: (reportId: string, commentId: string, report: Omit<Report, 'timestamp' | 'reporterId'>) => Promise<void>;
+    assignIssue: (reportId: string) => Promise<void>;
     resolveIssue: (reportId: string, resolutionNote: string) => Promise<void>;
     toggleFollow: (targetUserId: string) => Promise<void>;
     updateUserRole: (userId: string, newRole: UserRole) => Promise<void>;
@@ -23,6 +25,7 @@ interface AppContextType {
     regenerateApiKey: () => Promise<void>;
     addTag: (tag: string) => Promise<void>;
     removeTag: (tag: string) => Promise<void>;
+    updateUserTheme: (theme: 'light' | 'dark') => Promise<void>;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -48,18 +51,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         }
     }, []);
 
-    // This effect keeps the authenticatedUser object up-to-date with the master users list.
-    // This is useful after an action (like follow/unfollow) updates the user's data.
+    useEffect(() => {
+        // Initial data load on startup if user data is not present
+        if (!authenticatedUser) {
+            refreshAllData();
+        }
+    }, [authenticatedUser, refreshAllData]);
+
     useEffect(() => {
         if (authenticatedUser && users.length > 0) {
             const latestUserData = users.find(u => u.id === authenticatedUser.id);
             if (!latestUserData || latestUserData.isBlocked) {
-                // User was deleted or blocked, log them out.
                 setAuthenticatedUser(null);
             } else if (JSON.stringify(latestUserData) !== JSON.stringify(authenticatedUser)) {
-                // User data has changed, update the authenticatedUser object.
-                // This will not cause a loop because it only runs when `users` array changes,
-                // and it only sets state if the user data is actually different.
                 setAuthenticatedUser(latestUserData);
             }
         }
@@ -70,14 +74,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         const user = await api.authenticate(email, password);
         if (user) {
             setAuthenticatedUser(user);
-            await refreshAllData(); // Load all data after successful login
+            await refreshAllData(); 
         }
         return user;
     };
 
     const logout = () => {
         setAuthenticatedUser(null);
-        // Clear data to prevent stale data flashing on next login
         setUsers([]);
         setIssueReports([]);
         setAllTags([]);
@@ -94,12 +97,27 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const getUserById = useCallback((userId: string): User | undefined => {
         return users.find(u => u.id === userId);
     }, [users]);
+    
+    const updateUserTheme = async (theme: 'light' | 'dark') => {
+        if (!authenticatedUser) return;
+        try {
+            await api.updateUserTheme(authenticatedUser.id, theme);
+            // Directly update the authenticated user state to avoid full refresh and logout bug
+            setAuthenticatedUser(prevUser => prevUser ? { ...prevUser, theme } : null);
+            // Also update the master users list to keep it in sync
+            setUsers(prevUsers => prevUsers.map(u => u.id === authenticatedUser.id ? { ...u, theme } : u));
+        } catch (error) {
+            console.error("Failed to update theme:", error);
+        }
+    };
 
     const addReport = withAuthAndRefresh(async (user, reportData) => api.submitReport(user.id, reportData));
     const addComment = withAuthAndRefresh(async (user, reportId, commentData) => api.addComment(user.id, reportId, commentData));
     const toggleReaction = withAuthAndRefresh(async (user, reportId, reactionType) => api.toggleReaction(user.id, reportId, reactionType));
+    const toggleCommentReaction = withAuthAndRefresh(async (user, reportId, commentId, reactionType) => api.toggleCommentReaction(user.id, reportId, commentId, reactionType));
     const reportIssue = withAuthAndRefresh(async (user, reportId, reportData) => api.reportIssue(user.id, reportId, reportData));
     const reportComment = withAuthAndRefresh(async (user, reportId, commentId, reportData) => api.reportComment(user.id, reportId, commentId, reportData));
+    const assignIssue = withAuthAndRefresh(async (user, reportId) => api.assignIssue(user.id, reportId));
     const resolveIssue = withAuthAndRefresh(async (user, reportId, resolutionNote) => api.resolveIssue(user.id, reportId, resolutionNote));
     const toggleFollow = withAuthAndRefresh(async (user, targetUserId) => api.toggleFollow(user.id, targetUserId));
     const updateUserRole = withAuthAndRefresh(async (user, userId, newRole) => api.updateUserRole(user.id, userId, newRole));
@@ -120,8 +138,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             addReport,
             addComment,
             toggleReaction,
+            toggleCommentReaction,
             reportIssue,
             reportComment,
+            assignIssue,
             resolveIssue,
             toggleFollow,
             updateUserRole,
@@ -131,6 +151,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             regenerateApiKey,
             addTag,
             removeTag,
+            updateUserTheme,
         }}>
             {children}
         </AppContext.Provider>
